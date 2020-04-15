@@ -102,18 +102,37 @@ Changes to be committed:
 
 git commit -m "initial state"
 
-    STM32CubeMX
-	Pinout&Config.. - Middleware - FREERTOS 
-	Mode - Interface=CMSIS_V2
-	Configuration - Config Parameters
-	    TOTAL_HEAP_SIZE=8000
-	Pinout&Config.. - Middleware - FATFS
-	Mode - User Defined
+    STM32CubeMX - TestSD.ioc - Pinout&Configuration
+	Middleware - FREERTOS 
+	    Mode - Interface=CMSIS_V2
+	    Configuration - Config Parameters
+		TOTAL_HEAP_SIZE=8000
+	Middleware - FATFS
+	    Mode - User Defined
 
     при сохранении получил окно WARNINGS:
 - When FreeRTOS is used? it is strogly recommended to use a HAL timebase source other than the Systick...
 
-	Pinout&Config.. - System Core - SYS
-	Timebase Source=TIM1
+    STM32CubeMX - TestSD.ioc - Pinout&Configuration
+	System Core - SYS
+	    Timebase Source=TIM1
+
+git add -A
+git commit -m "добавлены FREERTOS, FATFS"
+[master 15328b8] добавлены FREERTOS, FATFS
+ 56 files changed, 35621 insertions(+), 94 deletions(-)
+...
+
+    STM32CubeMX - TestSD.ioc - Pinout&Configuration
+	Connectivity - SPI2
+	    Mode=Full-Duplex Master
 
 
+Wed 15 Apr 2020 04:16:16 PM MSK
+    добавил мигание LED5
+    compile - load - debug = OK
+
+git add -A
+    добавилось много ненужных файлов
+git reset HEAD
+    скопировал .gitignore из пред.проекта
