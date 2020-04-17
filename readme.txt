@@ -136,3 +136,6 @@ git add -A
     добавилось много ненужных файлов
 git reset HEAD
     скопировал .gitignore из пред.проекта
+
+Thu 16 Apr 2020 02:04:02 PM MSK
+    поменял прескалер=16 ==> BaudRate=1.5 Mb/s
