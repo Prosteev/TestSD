@@ -1,6 +1,7 @@
 #MicroXplorer Configuration settings - do not modify
-FREERTOS.IPParameters=Tasks01,configTOTAL_HEAP_SIZE
-FREERTOS.Tasks01=defaultTask,24,128,StartDefaultTask,Default,NULL,Dynamic,NULL,NULL
+FREERTOS.FootprintOK=true
+FREERTOS.IPParameters=Tasks01,configTOTAL_HEAP_SIZE,FootprintOK
+FREERTOS.Tasks01=defaultTask,24,128,StartDefaultTask,Default,NULL,Dynamic,NULL,NULL;spiTask,8,128,SpiTask,Default,NULL,Dynamic,NULL,NULL;buttonTask,8,128,ButtonTask,Default,NULL,Dynamic,NULL,NULL
 FREERTOS.configTOTAL_HEAP_SIZE=8000
 File.Version=6
 GPIO.groupedBy=Group By Peripherals
@@ -302,8 +303,9 @@ SPI1.Mode-Full_Duplex_Master=SPI_MODE_MASTER
 SPI1.VirtualType=VM_MASTER
 SPI2.BaudRatePrescaler=SPI_BAUDRATEPRESCALER_16
 SPI2.CalculateBaudRate=1.5 MBits/s
+SPI2.DataSize=SPI_DATASIZE_4BIT
 SPI2.Direction=SPI_DIRECTION_2LINES
-SPI2.IPParameters=VirtualType,Mode,Direction,CalculateBaudRate,BaudRatePrescaler
+SPI2.IPParameters=VirtualType,Mode,Direction,CalculateBaudRate,BaudRatePrescaler,DataSize
 SPI2.Mode=SPI_MODE_MASTER
 SPI2.VirtualType=VM_MASTER
 VP_FATFS_VS_Generic.Mode=User_defined

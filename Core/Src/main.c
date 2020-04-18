@@ -35,6 +35,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+/* event flags for spi_event_flags */
+#define EF_SPI_SEND_TEST_CMD 0x1 /* SPI: send test command */
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -57,7 +61,23 @@ const osThreadAttr_t defaultTask_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
+/* Definitions for spiTask */
+osThreadId_t spiTaskHandle;
+const osThreadAttr_t spiTask_attributes = {
+  .name = "spiTask",
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 128 * 4
+};
+/* Definitions for buttonTask */
+osThreadId_t buttonTaskHandle;
+const osThreadAttr_t buttonTask_attributes = {
+  .name = "buttonTask",
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 128 * 4
+};
 /* USER CODE BEGIN PV */
+
+osEventFlagsId_t spi_event_flags = NULL;
 
 /* USER CODE END PV */
 
@@ -69,6 +89,8 @@ static void MX_SPI1_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_USB_PCD_Init(void);
 void StartDefaultTask(void *argument);
+void SpiTask(void *argument);
+void ButtonTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -139,8 +161,17 @@ int main(void)
   /* creation of defaultTask */
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
+  /* creation of spiTask */
+  spiTaskHandle = osThreadNew(SpiTask, NULL, &spiTask_attributes);
+
+  /* creation of buttonTask */
+  buttonTaskHandle = osThreadNew(ButtonTask, NULL, &buttonTask_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
+
+  spi_event_flags = osEventFlagsNew(NULL);
+
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
@@ -426,10 +457,123 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	    osDelay(300);
-	    HAL_GPIO_TogglePin(GPIOE,LD5_Pin);
+	  if(spi_event_flags==NULL)
+		  osDelay(100);
+	  else
+		  osDelay(500);
+
+	  HAL_GPIO_TogglePin(LD4_GPIO_Port,LD4_Pin);
   }
   /* USER CODE END 5 */ 
+}
+
+/* USER CODE BEGIN Header_SpiTask */
+/**
+* @brief Function implementing the spiTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_SpiTask */
+void SpiTask(void *argument)
+{
+  /* USER CODE BEGIN SpiTask */
+	HAL_StatusTypeDef spi_status;
+	uint8_t tx_data = 0;
+	uint8_t rx_data = 0;
+
+	/* Infinite loop */
+	for(;;)
+	{
+		if(osEventFlagsWait(
+				spi_event_flags,
+				EF_SPI_SEND_TEST_CMD,
+				osFlagsWaitAny,
+				0) == EF_SPI_SEND_TEST_CMD)
+		{	// SPI send test command received
+			HAL_GPIO_TogglePin(LD5_GPIO_Port,LD5_Pin);
+			spi_status =
+					HAL_SPI_TransmitReceive(
+							&hspi2,
+							&tx_data,
+							&rx_data,
+							1,
+							5000U);
+
+			switch (spi_status)
+			{
+				case HAL_OK:
+					HAL_GPIO_WritePin(LD7_GPIO_Port,LD7_Pin,GPIO_PIN_SET);
+					HAL_GPIO_WritePin(LD9_GPIO_Port,LD9_Pin,GPIO_PIN_RESET);
+					HAL_GPIO_WritePin(LD10_GPIO_Port,LD10_Pin,GPIO_PIN_RESET);
+					break;
+
+				case HAL_TIMEOUT:
+					HAL_GPIO_WritePin(LD7_GPIO_Port,LD7_Pin,GPIO_PIN_RESET);
+					HAL_GPIO_WritePin(LD9_GPIO_Port,LD9_Pin,GPIO_PIN_SET);
+					HAL_GPIO_WritePin(LD10_GPIO_Port,LD10_Pin,GPIO_PIN_RESET);
+					break;
+
+				case HAL_ERROR:
+					HAL_GPIO_WritePin(LD7_GPIO_Port,LD7_Pin,GPIO_PIN_RESET);
+					HAL_GPIO_WritePin(LD9_GPIO_Port,LD9_Pin,GPIO_PIN_RESET);
+					HAL_GPIO_WritePin(LD10_GPIO_Port,LD10_Pin,GPIO_PIN_SET);
+					break;
+
+				default:
+					break;
+			}
+
+			HAL_GPIO_WritePin(LD8_GPIO_Port,LD8_Pin,
+					(tx_data==rx_data) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+			++tx_data;
+		}
+//		osDelay(1);
+	}
+  /* USER CODE END SpiTask */
+}
+
+/* USER CODE BEGIN Header_ButtonTask */
+/**
+* @brief Function implementing the buttonTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_ButtonTask */
+void ButtonTask(void *argument)
+{
+  /* USER CODE BEGIN ButtonTask */
+	static char button_prev_state_is_pressed=0;
+	char button_state_is_now_pressed;
+	GPIO_PinState button_current_state;
+	uint32_t ev_flag_set_ret_value;
+	/* Infinite loop */
+	for(;;)
+	{
+		osDelay(100); // некая защита от дребезга кнопки
+		button_current_state=HAL_GPIO_ReadPin(B1_GPIO_Port,B1_Pin);
+		HAL_GPIO_WritePin(LD3_GPIO_Port,LD3_Pin,button_current_state);
+		button_state_is_now_pressed = (button_current_state == GPIO_PIN_SET);
+
+		if(button_prev_state_is_pressed != button_state_is_now_pressed)
+		{	// button state changed
+			if(button_current_state == GPIO_PIN_SET)
+			{	// button just pressed
+				button_prev_state_is_pressed=1;
+				HAL_GPIO_WritePin(LD7_GPIO_Port,LD7_Pin,GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(LD8_GPIO_Port,LD8_Pin,GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(LD9_GPIO_Port,LD9_Pin,GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(LD10_GPIO_Port,LD10_Pin,GPIO_PIN_RESET);
+			}
+			else
+			{	// button just released
+				button_prev_state_is_pressed=0;
+				ev_flag_set_ret_value=
+						osEventFlagsSet(spi_event_flags,EF_SPI_SEND_TEST_CMD);
+			}
+		}
+	}
+  /* USER CODE END ButtonTask */
 }
 
  /**
@@ -461,6 +605,9 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
+
+	for(;;)
+		;
 
   /* USER CODE END Error_Handler_Debug */
 }
