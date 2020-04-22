@@ -151,3 +151,9 @@ Sat 18 Apr 2020 03:22:01 PM MSK
 	и посылаю 0,1,2... в SPI2 и тут же принимаю 
 	сравниваю - если == - зажигаю LD8
     РАБОТАЕТ!!! Но до 16ти нажатий - дальше несовпадение, т.к. Data Size = 4 Bits
+
+Mon 20 Apr 2020 04:52:43 PM MSK
+    отрихтовал под себя FATFS/Target/ffconf.h
+    взял из stm32_vs1053_player/CubeIDE/
+	user_diskio.c
+	fatfs_sd.c & .h

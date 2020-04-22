@@ -99,6 +99,33 @@ void ButtonTask(void *argument);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+/*
+ * additional 64bit tick counter function
+ *
+ * https://www.keil.com/pack/doc/cmsis/RTOS2/html/group__CMSIS__RTOS__KernelCtrl.html#ga84bcdbf2fb76b10c8df4e439f0c7e11b
+ *
+ * Due to the limited value range u
+ * sed for the tick count it may overflow during runtime,
+ * i.e. after 232 ticks which are roughly 49days @ 1ms.
+ * Typically one has not to take special care of this
+ * unless a monotonic counter is needed. For such a case
+ * an additional 64bit tick counter can be implemented as follows.
+ * The given example needs GetTick() called
+ * at least twice per tick overflow to work properly.
+ */
+uint64_t GetTick(void)
+{
+  static uint32_t tick_h = 0U;
+  static uint32_t tick_l = 0U;
+         uint32_t tick;
+  tick = osKernelGetTickCount();
+  if (tick < tick_l) {
+    tick_h++;
+  }
+  tick_l = tick;
+  return (((uint64_t)tick_h << 32) | tick_l);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -340,11 +367,11 @@ static void MX_SPI2_Init(void)
   hspi2.Instance = SPI2;
   hspi2.Init.Mode = SPI_MODE_MASTER;
   hspi2.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi2.Init.DataSize = SPI_DATASIZE_4BIT;
+  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -413,6 +440,9 @@ static void MX_GPIO_Init(void)
                           |LD7_Pin|LD9_Pin|LD10_Pin|LD8_Pin 
                           |LD6_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
+
   /*Configure GPIO pins : DRDY_Pin MEMS_INT3_Pin MEMS_INT4_Pin MEMS_INT1_Pin 
                            MEMS_INT2_Pin */
   GPIO_InitStruct.Pin = DRDY_Pin|MEMS_INT3_Pin|MEMS_INT4_Pin|MEMS_INT1_Pin 
@@ -421,12 +451,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : CS_I2C_SPI_Pin LD4_Pin LD3_Pin LD5_Pin 
-                           LD7_Pin LD9_Pin LD10_Pin LD8_Pin 
-                           LD6_Pin */
-  GPIO_InitStruct.Pin = CS_I2C_SPI_Pin|LD4_Pin|LD3_Pin|LD5_Pin 
-                          |LD7_Pin|LD9_Pin|LD10_Pin|LD8_Pin 
-                          |LD6_Pin;
+  /*Configure GPIO pins : CS_I2C_SPI_Pin SD_CS_Pin LD4_Pin LD3_Pin 
+                           LD5_Pin LD7_Pin LD9_Pin LD10_Pin 
+                           LD8_Pin LD6_Pin */
+  GPIO_InitStruct.Pin = CS_I2C_SPI_Pin|SD_CS_Pin|LD4_Pin|LD3_Pin 
+                          |LD5_Pin|LD7_Pin|LD9_Pin|LD10_Pin 
+                          |LD8_Pin|LD6_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -477,9 +507,6 @@ void StartDefaultTask(void *argument)
 void SpiTask(void *argument)
 {
   /* USER CODE BEGIN SpiTask */
-	HAL_StatusTypeDef spi_status;
-	uint8_t tx_data = 0;
-	uint8_t rx_data = 0;
 
 	/* Infinite loop */
 	for(;;)
@@ -490,43 +517,22 @@ void SpiTask(void *argument)
 				osFlagsWaitAny,
 				0) == EF_SPI_SEND_TEST_CMD)
 		{	// SPI send test command received
-			HAL_GPIO_TogglePin(LD5_GPIO_Port,LD5_Pin);
-			spi_status =
-					HAL_SPI_TransmitReceive(
-							&hspi2,
-							&tx_data,
-							&rx_data,
-							1,
-							5000U);
+			HAL_GPIO_TogglePin(LD5_GPIO_Port,LD5_Pin);/* indicate start command */
 
-			switch (spi_status)
+			switch (disk_initialize(0))
 			{
-				case HAL_OK:
+				case RES_OK:
 					HAL_GPIO_WritePin(LD7_GPIO_Port,LD7_Pin,GPIO_PIN_SET);
-					HAL_GPIO_WritePin(LD9_GPIO_Port,LD9_Pin,GPIO_PIN_RESET);
-					HAL_GPIO_WritePin(LD10_GPIO_Port,LD10_Pin,GPIO_PIN_RESET);
 					break;
 
-				case HAL_TIMEOUT:
-					HAL_GPIO_WritePin(LD7_GPIO_Port,LD7_Pin,GPIO_PIN_RESET);
-					HAL_GPIO_WritePin(LD9_GPIO_Port,LD9_Pin,GPIO_PIN_SET);
-					HAL_GPIO_WritePin(LD10_GPIO_Port,LD10_Pin,GPIO_PIN_RESET);
-					break;
-
-				case HAL_ERROR:
-					HAL_GPIO_WritePin(LD7_GPIO_Port,LD7_Pin,GPIO_PIN_RESET);
-					HAL_GPIO_WritePin(LD9_GPIO_Port,LD9_Pin,GPIO_PIN_RESET);
+				case STA_NOINIT:
 					HAL_GPIO_WritePin(LD10_GPIO_Port,LD10_Pin,GPIO_PIN_SET);
 					break;
 
 				default:
+					HAL_GPIO_WritePin(LD9_GPIO_Port,LD9_Pin,GPIO_PIN_SET);
 					break;
 			}
-
-			HAL_GPIO_WritePin(LD8_GPIO_Port,LD8_Pin,
-					(tx_data==rx_data) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-
-			++tx_data;
 		}
 //		osDelay(1);
 	}
@@ -546,7 +552,9 @@ void ButtonTask(void *argument)
 	static char button_prev_state_is_pressed=0;
 	char button_state_is_now_pressed;
 	GPIO_PinState button_current_state;
-	uint32_t ev_flag_set_ret_value;
+//	static unsigned char button_click_counter=0;
+//	uint32_t ev_flag_set_ret_value;
+
 	/* Infinite loop */
 	for(;;)
 	{
@@ -568,7 +576,7 @@ void ButtonTask(void *argument)
 			else
 			{	// button just released
 				button_prev_state_is_pressed=0;
-				ev_flag_set_ret_value=
+//				ev_flag_set_ret_value=
 						osEventFlagsSet(spi_event_flags,EF_SPI_SEND_TEST_CMD);
 			}
 		}
