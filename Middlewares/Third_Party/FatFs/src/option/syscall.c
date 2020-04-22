@@ -20,13 +20,9 @@ int ff_cre_syncobj (	/* TRUE:Function succeeded, FALSE:Could not create due to a
 	_SYNC_t *sobj		/* Pointer to return the created sync object */
 )
 {
-  int ret;
+  *sobj = osSemaphoreNew(1U, 1U, NULL);
   
-  osSemaphoreDef(SEM);
-  *sobj = osSemaphoreCreate(osSemaphore(SEM), 1);		
-  ret = (*sobj != NULL);
-  
-  return ret;
+  return (*sobj != NULL);
 }
 
 
@@ -62,7 +58,7 @@ int ff_req_grant (	/* TRUE:Got a grant to access the volume, FALSE:Could not get
 {
   int ret = 0;
   
-  if(osSemaphoreWait(sobj, _FS_TIMEOUT) == osOK)
+  if (osSemaphoreAcquire(sobj, _FS_TIMEOUT) == osOK)
   {
     ret = 1;
   }

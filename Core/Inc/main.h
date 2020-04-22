@@ -121,7 +121,9 @@ uint64_t GetTick(void);
 #define MEMS_INT2_Pin GPIO_PIN_1
 #define MEMS_INT2_GPIO_Port GPIOE
 /* USER CODE BEGIN Private defines */
-
+typedef unsigned char BOOL;
+#define TRUE 1
+#define FALSE 0
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

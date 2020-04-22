@@ -25,7 +25,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdlib.h>
+#include <errno.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -93,7 +94,7 @@ void SpiTask(void *argument);
 void ButtonTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-
+BOOL MakeSdCardJob(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -124,6 +125,47 @@ uint64_t GetTick(void)
   }
   tick_l = tick;
   return (((uint64_t)tick_h << 32) | tick_l);
+}
+
+
+BOOL MakeSdCardJob(void)
+{
+	DSTATUS dstat = RES_OK;
+
+//    FATFS *fs;     /* Pointer to the filesystem object */
+	FATFS ofs;
+    FRESULT fres;
+
+	dstat = disk_initialize(0);
+	if(dstat != RES_OK)
+		return FALSE;
+
+//    fs = malloc(sizeof (FATFS));/* Get work area for the volume */
+//    if(fs==NULL)
+//    {
+//    	int e = errno;
+//    	return FALSE;
+//    }
+
+    fres=f_mount(&ofs, "", 0);/* Mount the default drive */
+    if(fres!=FR_OK)
+    	return FALSE;
+
+//    f_open(...                             /* Here any file API can be used */
+//
+//    ...
+//
+//    f_mount(fs, "", 0);                    /* Re-mount the default drive to reinitialize the filesystem */
+//
+//    ...
+
+    fres=f_mount(0, "", 0);/* Unmount the default drive */
+     if(fres!=FR_OK)
+    	return FALSE;
+
+//   free(fs);/* Here the work area can be discarded */
+
+   return TRUE;
 }
 
 /* USER CODE END 0 */
@@ -519,13 +561,13 @@ void SpiTask(void *argument)
 		{	// SPI send test command received
 			HAL_GPIO_TogglePin(LD5_GPIO_Port,LD5_Pin);/* indicate start command */
 
-			switch (disk_initialize(0))
+			switch (MakeSdCardJob())
 			{
-				case RES_OK:
+				case TRUE:
 					HAL_GPIO_WritePin(LD7_GPIO_Port,LD7_Pin,GPIO_PIN_SET);
 					break;
 
-				case STA_NOINIT:
+				case FALSE:
 					HAL_GPIO_WritePin(LD10_GPIO_Port,LD10_Pin,GPIO_PIN_SET);
 					break;
 

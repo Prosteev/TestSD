@@ -167,3 +167,16 @@ Wed 22 Apr 2020 01:52:29 PM MSK
 	- добавил длинный системный таймер - чтобы задержки в fatfs_sd.c не опрокидывались через 49 дней
 ИТОГО:
     карта отвечает правильно!!!!
+
+    начал добавлять работу с FATFS
+    ошибки линковки - syscall.c использует функции старой CMSIS-RTOS
+    взял файл из https://github.com/miniwinwm/BluePillDemo.git
+	из /BluePillDemo_FreeRTOS_FatFS/Middlewares/Third_Party/FatFs/src/option/syscall.c
+    этот файл, как оказалось, генерится автоматически кубом - и его надо перезаписывать каждый раз после 
+	генерации текстов по .ioc !!!!!!!!!!!!!!!
+
+    malloc не работает - errno=ENOMEM Not enough memory - даже если делаю в 
+	*.ioc - Project Manager - Project - Min Heap Size = 0x5000 
+    заменил за лок.переменную - не хватило стека - Min Stack Size = 0x4000 - ok
+ИТОГО:
+    работает f_mount - монтирование ФС - и размонтирование
