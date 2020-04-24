@@ -67,7 +67,7 @@ osThreadId_t spiTaskHandle;
 const osThreadAttr_t spiTask_attributes = {
   .name = "spiTask",
   .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
+  .stack_size = 500 * 4
 };
 /* Definitions for buttonTask */
 osThreadId_t buttonTaskHandle;
@@ -136,6 +136,10 @@ BOOL MakeSdCardJob(void)
 	FATFS ofs;
     FRESULT fres;
 
+    FIL fil;        /* File object */
+    char line[10]; /* Line buffer */
+    FRESULT fr;     /* FatFs return code */
+
 	dstat = disk_initialize(0);
 	if(dstat != RES_OK)
 		return FALSE;
@@ -147,17 +151,21 @@ BOOL MakeSdCardJob(void)
 //    	return FALSE;
 //    }
 
-    fres=f_mount(&ofs, "", 0);/* Mount the default drive */
+    fres=f_mount(&ofs, "", 1);/* Mount the default drive */
     if(fres!=FR_OK)
     	return FALSE;
 
-//    f_open(...                             /* Here any file API can be used */
-//
-//    ...
-//
-//    f_mount(fs, "", 0);                    /* Re-mount the default drive to reinitialize the filesystem */
-//
-//    ...
+    /* Open a text file */
+    fr = f_open(&fil, "folder.ini", FA_READ);
+    if (fr)
+    	return FALSE;
+//    return (int)fr;
+
+    /* Read every line and display it */
+    f_gets(line, 9 /*sizeof line*/, &fil);
+
+    /* Close the file */
+    f_close(&fil);
 
     fres=f_mount(0, "", 0);/* Unmount the default drive */
      if(fres!=FR_OK)
