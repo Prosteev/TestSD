@@ -1,7 +1,13 @@
 #MicroXplorer Configuration settings - do not modify
+FATFS.IPParameters=_CODE_PAGE,_FS_NORTC,_NORTC_YEAR,_NORTC_MON,_NORTC_MDAY
+FATFS._CODE_PAGE=1251
+FATFS._FS_NORTC=1
+FATFS._NORTC_MDAY=1
+FATFS._NORTC_MON=1
+FATFS._NORTC_YEAR=2020
 FREERTOS.FootprintOK=true
 FREERTOS.IPParameters=Tasks01,configTOTAL_HEAP_SIZE,FootprintOK
-FREERTOS.Tasks01=defaultTask,24,128,StartDefaultTask,Default,NULL,Dynamic,NULL,NULL;spiTask,8,128,SpiTask,Default,NULL,Dynamic,NULL,NULL;buttonTask,8,128,ButtonTask,Default,NULL,Dynamic,NULL,NULL
+FREERTOS.Tasks01=defaultTask,24,128,StartDefaultTask,Default,NULL,Dynamic,NULL,NULL;spiTask,8,500,SpiTask,Default,NULL,Dynamic,NULL,NULL;buttonTask,8,128,ButtonTask,Default,NULL,Dynamic,NULL,NULL
 FREERTOS.configTOTAL_HEAP_SIZE=8000
 File.Version=6
 GPIO.groupedBy=Group By Peripherals
