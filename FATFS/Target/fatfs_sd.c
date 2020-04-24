@@ -40,8 +40,9 @@ static void DESELECT(void)
 /* SPI transmit a byte */
 static void SPI_TxByte(uint8_t data)
 {
-    while(!__HAL_SPI_GET_FLAG(HSPI_SDCARD, SPI_FLAG_TXE))
+    do {
     	osDelay(1);
+    } while(!__HAL_SPI_GET_FLAG(HSPI_SDCARD, SPI_FLAG_TXE));
     HAL_SPI_Transmit(HSPI_SDCARD, &data, 1, SPI_TIMEOUT);
 }
 
@@ -221,11 +222,17 @@ static bool SD_TxDataBlock(const uint8_t *buff, BYTE token)
 static BYTE SD_SendCmd(BYTE cmd, uint32_t arg)
 {
     uint8_t crc, res;
+//    uint8_t cmdBuffer[6] = {0};
 
     /* wait SD ready */
     if (SD_ReadyWait() != 0xFF) return 0xFF;
 
     /* transmit command */
+//	cmdBuffer[0] = cmd; 					/* Command */
+//	cmdBuffer[1] = ((uint8_t)(arg >> 24)); 	/* Argument[31..24] */
+//	cmdBuffer[2] = ((uint8_t)(arg >> 16)); 	/* Argument[23..16] */
+//	cmdBuffer[3] = ((uint8_t)(arg >> 8)); 	/* Argument[15..8] */
+//	cmdBuffer[4] = ((uint8_t)arg); 			/* Argument[7..0] */
     SPI_TxByte(cmd);                     /* Command */
     SPI_TxByte((uint8_t)(arg >> 24));     /* Argument[31..24] */
     SPI_TxByte((uint8_t)(arg >> 16));     /* Argument[23..16] */
@@ -238,7 +245,11 @@ static BYTE SD_SendCmd(BYTE cmd, uint32_t arg)
     else crc = 1;
 
     /* transmit CRC */
+//    cmdBuffer[5] = crc;
     SPI_TxByte(crc);
+
+    /* transmit buffer */
+//	SPI_TxBuffer(cmdBuffer,6);
 
     /* Skip a stuff byte when STOP_TRANSMISSION */
     if (cmd == CMD12) SPI_RxByte();
@@ -312,7 +323,14 @@ DSTATUS SD_disk_initialize(BYTE drv)
                     }
 
                     /* SDv2 (HC or SC) */
-                    type = (ocr[0] & 0x40) ? CT_SD2 | CT_BLOCK : CT_SD2;
+                    if(ocr[0] & 0x40)
+                    	type = CT_SD2 | CT_BLOCK;
+                    else
+                    {
+                    	type = CT_SD2;
+                    	SD_SendCmd(CMD16, 512);
+                    }
+//                    type = (ocr[0] & 0x40) ? CT_SD2 | CT_BLOCK : CT_SD2;
                 }
             }
         }
@@ -376,7 +394,8 @@ DRESULT SD_disk_read(BYTE pdrv, BYTE* buff, DWORD sector, UINT count)
     if (Stat & STA_NOINIT) return RES_NOTRDY;
 
     /* convert to byte address */
-    if (!(CardType & CT_SD2)) sector *= 512;
+    sector *= 512;
+//    if (!(CardType & CT_SD2)) sector *= 512;
 
     SELECT();
 
