@@ -174,9 +174,23 @@ Wed 22 Apr 2020 01:52:29 PM MSK
 	из /BluePillDemo_FreeRTOS_FatFS/Middlewares/Third_Party/FatFs/src/option/syscall.c
     этот файл, как оказалось, генерится автоматически кубом - и его надо перезаписывать каждый раз после 
 	генерации текстов по .ioc !!!!!!!!!!!!!!!
+    команда для перезаписи:
+cp -f /home/iva/prog/ARM/STM/BluePillDemo/BluePillDemo_FreeRTOS_FatFS/Middlewares/Third_Party/FatFs/src/option/syscall.c /home/iva/prog/ARM/STM/TestSD/Middlewares/Third_Party/FatFs/src/option/
+
 
     malloc не работает - errno=ENOMEM Not enough memory - даже если делаю в 
 	*.ioc - Project Manager - Project - Min Heap Size = 0x5000 
     заменил за лок.переменную - не хватило стека - Min Stack Size = 0x4000 - ok
 ИТОГО:
-    работает f_mount - монтирование ФС - и размонтирование
+    работает disk_initialize - инициализация устройства
+
+Sat 25 Apr 2020 03:46:22 PM MSK
+    вчера добился работы f_mount - монтирование ФС - и размонтирование
+    для этого:
+	поправил задержку при записи, чтобы гарантированно был выход в ОС
+	нашел расхождение между алгоритмом Chan http://elm-chan.org/docs/mmc/i/sdinit.png
+	    и программой --> добавил установку размера блока=512 для моего типа SD=CT_SD2, 
+	понял, что ошибка при вызове SD_SendCmd(CMD17, sector) связана с тем, что для моей карточки
+	    номер сектора нужно *512 - а в DRESULT SD_disk_read(...) было:
+		if (!(CardType & CT_SD2)) sector *= 512;
+	    ==> сделал безусловный  пересчет номера блока в номер байта - после этого заработало f_mount
