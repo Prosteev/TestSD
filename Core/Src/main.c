@@ -67,7 +67,7 @@ osThreadId_t spiTaskHandle;
 const osThreadAttr_t spiTask_attributes = {
   .name = "spiTask",
   .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 500 * 4
+  .stack_size = 2200 * 4
 };
 /* Definitions for buttonTask */
 osThreadId_t buttonTaskHandle;
@@ -75,6 +75,11 @@ const osThreadAttr_t buttonTask_attributes = {
   .name = "buttonTask",
   .priority = (osPriority_t) osPriorityLow,
   .stack_size = 128 * 4
+};
+/* Definitions for syscallCountingSem */
+osSemaphoreId_t syscallCountingSemHandle;
+const osSemaphoreAttr_t syscallCountingSem_attributes = {
+  .name = "syscallCountingSem"
 };
 /* USER CODE BEGIN PV */
 
@@ -137,7 +142,7 @@ BOOL MakeSdCardJob(void)
     FRESULT fres;
 
     FIL fil;        /* File object */
-    char line[10]; /* Line buffer */
+    char line[20]; /* Line buffer */
     FRESULT fr;     /* FatFs return code */
 
 	dstat = disk_initialize(0);
@@ -162,7 +167,7 @@ BOOL MakeSdCardJob(void)
 //    return (int)fr;
 
     /* Read every line and display it */
-    f_gets(line, 9 /*sizeof line*/, &fil);
+    f_gets(line, sizeof line, &fil);
 
     /* Close the file */
     f_close(&fil);
@@ -221,6 +226,10 @@ int main(void)
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
+
+  /* Create the semaphores(s) */
+  /* creation of syscallCountingSem */
+  syscallCountingSemHandle = osSemaphoreNew(1, 1, &syscallCountingSem_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */

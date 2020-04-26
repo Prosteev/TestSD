@@ -7,6 +7,9 @@
 #include "ff.h"
 
 #if _FS_REENTRANT
+
+extern osSemaphoreId_t syscallCountingSemHandle;
+
 /*-----------------------------------------------------------------------
  Create a Synchronization Object
 ------------------------------------------------------------------------
@@ -20,7 +23,7 @@ int ff_cre_syncobj (	/* TRUE:Function succeeded, FALSE:Could not create due to a
 	_SYNC_t *sobj		/* Pointer to return the created sync object */
 )
 {
-  *sobj = osSemaphoreNew(1U, 1U, NULL);
+  *sobj = syscallCountingSemHandle;//osSemaphoreNew(1U, 1U, NULL);
   
   return (*sobj != NULL);
 }
