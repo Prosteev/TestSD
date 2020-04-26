@@ -394,8 +394,7 @@ DRESULT SD_disk_read(BYTE pdrv, BYTE* buff, DWORD sector, UINT count)
     if (Stat & STA_NOINIT) return RES_NOTRDY;
 
     /* convert to byte address */
-    sector *= 512;
-//    if (!(CardType & CT_SD2)) sector *= 512;
+    if (!(CardType & CT_BLOCK)) sector *= 512;
 
     SELECT();
 
