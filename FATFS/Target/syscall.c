@@ -42,7 +42,7 @@ int ff_del_syncobj (	/* TRUE:Function succeeded, FALSE:Could not delete due to a
 	_SYNC_t sobj		/* Sync object tied to the logical drive to be deleted */
 )
 {
-  osSemaphoreDelete (sobj);
+//  osSemaphoreDelete (sobj);
   return 1;
 }
 
