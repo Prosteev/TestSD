@@ -564,7 +564,7 @@ void StartDefaultTask(void *argument)
 		  if(okFatfsOnSd_mount())
 			  sd_card_init_needed=FALSE;
 	  }
-	  if(spi_event_flags==NULL || main_event_flags==NULL)
+	  if(spi_event_flags==NULL || main_event_flags==NULL || sd_card_init_needed)
 		  osDelay(100);
 	  else
 		  osDelay(500);
