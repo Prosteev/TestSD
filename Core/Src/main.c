@@ -24,6 +24,7 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "fatfs.h"
+#include "ProjDefs.h"
 #include "MainEventFlags.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -90,6 +91,7 @@ const osSemaphoreAttr_t syscallCountingSem_attributes = {
 /* USER CODE BEGIN PV */
 
 osEventFlagsId_t spi_event_flags = NULL;
+BOOL sd_card_init_needed = TRUE;
 
 /* USER CODE END PV */
 
@@ -557,7 +559,12 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	  if(spi_event_flags==NULL)
+	  if(sd_card_init_needed)
+	  {
+		  if(okFatfsOnSd_mount())
+			  sd_card_init_needed=FALSE;
+	  }
+	  if(spi_event_flags==NULL || main_event_flags==NULL)
 		  osDelay(100);
 	  else
 		  osDelay(500);
