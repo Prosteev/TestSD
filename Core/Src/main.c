@@ -16,17 +16,23 @@
   *
   ******************************************************************************
   */
+#define I_AM_IN_MAIN_C
+
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
 #include "fatfs.h"
+#include "MainEventFlags.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdlib.h>
 #include <errno.h>
+
+#include "SdCardJobs.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -135,51 +141,55 @@ uint64_t GetTick(void)
 
 BOOL MakeSdCardJob(void)
 {
-	DSTATUS dstat = RES_OK;
-
-//    FATFS *fs;     /* Pointer to the filesystem object */
-	FATFS ofs;
-    FRESULT fres;
-
-    FIL fil;        /* File object */
-    char line[20]; /* Line buffer */
-    FRESULT fr;     /* FatFs return code */
-
-	dstat = disk_initialize(0);
-	if(dstat != RES_OK)
-		return FALSE;
-
-//    fs = malloc(sizeof (FATFS));/* Get work area for the volume */
-//    if(fs==NULL)
-//    {
-//    	int e = errno;
-//    	return FALSE;
-//    }
-
-    fres=f_mount(&ofs, "", 1);/* Mount the default drive */
-    if(fres!=FR_OK)
-    	return FALSE;
-
-    /* Open a text file */
-    fr = f_open(&fil, "folder.ini", FA_READ);
-    if (fr)
-    	return FALSE;
-//    return (int)fr;
-
-    /* Read every line and display it */
-    f_gets(line, sizeof line, &fil);
-
-    /* Close the file */
-    f_close(&fil);
-
-    fres=f_mount(0, "", 0);/* Unmount the default drive */
-     if(fres!=FR_OK)
-    	return FALSE;
-
-//   free(fs);/* Here the work area can be discarded */
-
-   return TRUE;
+	return okFatfsOnSd_mount();
 }
+
+//{
+//	DSTATUS dstat = RES_OK;
+//
+////    FATFS *fs;     /* Pointer to the filesystem object */
+//	FATFS ofs;
+//    FRESULT fres;
+//
+//    FIL fil;        /* File object */
+//    char line[20]; /* Line buffer */
+//    FRESULT fr;     /* FatFs return code */
+//
+//	dstat = disk_initialize(0);
+//	if(dstat != RES_OK)
+//		return FALSE;
+//
+////    fs = malloc(sizeof (FATFS));/* Get work area for the volume */
+////    if(fs==NULL)
+////    {
+////    	int e = errno;
+////    	return FALSE;
+////    }
+//
+//    fres=f_mount(&ofs, "", 1);/* Mount the default drive */
+//    if(fres!=FR_OK)
+//    	return FALSE;
+//
+//    /* Open a text file */
+//    fr = f_open(&fil, "folder.ini", FA_READ);
+//    if (fr)
+//    	return FALSE;
+////    return (int)fr;
+//
+//    /* Read every line and display it */
+//    f_gets(line, sizeof line, &fil);
+//
+//    /* Close the file */
+//    f_close(&fil);
+//
+//    fres=f_mount(0, "", 0);/* Unmount the default drive */
+//     if(fres!=FR_OK)
+//    	return FALSE;
+//
+////   free(fs);/* Here the work area can be discarded */
+//
+//   return TRUE;
+//}
 
 /* USER CODE END 0 */
 
@@ -257,6 +267,7 @@ int main(void)
   /* add threads, ... */
 
   spi_event_flags = osEventFlagsNew(NULL);
+  main_event_flags = osEventFlagsNew(NULL);
 
   /* USER CODE END RTOS_THREADS */
 
