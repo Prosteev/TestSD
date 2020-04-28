@@ -24,8 +24,6 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "fatfs.h"
-#include "ProjDefs.h"
-#include "MainEventFlags.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -33,6 +31,7 @@
 #include <errno.h>
 
 #include "SdCardJobs.h"
+#include "MainEventFlags.h"
 
 /* USER CODE END Includes */
 
@@ -74,12 +73,19 @@ osThreadId_t spiTaskHandle;
 const osThreadAttr_t spiTask_attributes = {
   .name = "spiTask",
   .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 2200 * 4
+  .stack_size = 450 * 4
 };
 /* Definitions for buttonTask */
 osThreadId_t buttonTaskHandle;
 const osThreadAttr_t buttonTask_attributes = {
   .name = "buttonTask",
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 128 * 4
+};
+/* Definitions for sdFatfsTask */
+osThreadId_t sdFatfsTaskHandle;
+const osThreadAttr_t sdFatfsTask_attributes = {
+  .name = "sdFatfsTask",
   .priority = (osPriority_t) osPriorityLow,
   .stack_size = 128 * 4
 };
@@ -105,6 +111,7 @@ static void MX_USB_PCD_Init(void);
 void StartDefaultTask(void *argument);
 void SpiTask(void *argument);
 void ButtonTask(void *argument);
+void SdFatfsTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 BOOL MakeSdCardJob(void);
@@ -264,6 +271,9 @@ int main(void)
 
   /* creation of buttonTask */
   buttonTaskHandle = osThreadNew(ButtonTask, NULL, &buttonTask_attributes);
+
+  /* creation of sdFatfsTask */
+  sdFatfsTaskHandle = osThreadNew(SdFatfsTask, NULL, &sdFatfsTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -559,11 +569,6 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	  if(sd_card_init_needed)
-	  {
-		  if(okFatfsOnSd_mount())
-			  sd_card_init_needed=FALSE;
-	  }
 	  if(spi_event_flags==NULL || main_event_flags==NULL || sd_card_init_needed)
 		  osDelay(100);
 	  else
@@ -659,6 +664,29 @@ void ButtonTask(void *argument)
 		}
 	}
   /* USER CODE END ButtonTask */
+}
+
+/* USER CODE BEGIN Header_SdFatfsTask */
+/**
+* @brief Function implementing the sdFatfsTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_SdFatfsTask */
+void SdFatfsTask(void *argument)
+{
+  /* USER CODE BEGIN SdFatfsTask */
+  /* Infinite loop */
+  for(;;)
+  {
+	  if(sd_card_init_needed)
+	  {
+		  if(okFatfsOnSd_mount())
+			  sd_card_init_needed=FALSE;
+	  }
+    osDelay(1);
+  }
+  /* USER CODE END SdFatfsTask */
 }
 
  /**
