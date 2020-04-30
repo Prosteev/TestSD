@@ -439,7 +439,7 @@ DRESULT SD_disk_write(BYTE pdrv, const BYTE* buff, DWORD sector, UINT count)
     if (Stat & STA_PROTECT) return RES_WRPRT;
 
     /* convert to byte address */
-    if (!(CardType & CT_SD2)) sector *= 512;
+    if (!(CardType & CT_BLOCK)) sector *= 512;
 
     SELECT();
 
