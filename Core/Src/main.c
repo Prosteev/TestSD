@@ -28,10 +28,12 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 
 #include "SdCardJobs.h"
 #include "MainEventFlags.h"
+#include "log_tasked.h"
 
 /* USER CODE END Includes */
 
@@ -44,7 +46,7 @@
 /* USER CODE BEGIN PD */
 
 /* event flags for spi_event_flags */
-#define EF_SPI_SEND_TEST_CMD 0x1 /* SPI: send test command */
+//#define EF_SPI_SEND_TEST_CMD 0x1 /* SPI: send test command */
 
 /* USER CODE END PD */
 
@@ -89,6 +91,13 @@ const osThreadAttr_t sdFatfsTask_attributes = {
   .priority = (osPriority_t) osPriorityLow,
   .stack_size = 128 * 4
 };
+/* Definitions for logTask */
+osThreadId_t logTaskHandle;
+const osThreadAttr_t logTask_attributes = {
+  .name = "logTask",
+  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = 900 * 4
+};
 /* Definitions for syscallCountingSem */
 osSemaphoreId_t syscallCountingSemHandle;
 const osSemaphoreAttr_t syscallCountingSem_attributes = {
@@ -96,8 +105,8 @@ const osSemaphoreAttr_t syscallCountingSem_attributes = {
 };
 /* USER CODE BEGIN PV */
 
-osEventFlagsId_t spi_event_flags = NULL;
-BOOL sd_card_init_needed = TRUE;
+//osEventFlagsId_t spi_event_flags = NULL;
+static BOOL sd_card_init_needed = TRUE;
 
 /* USER CODE END PV */
 
@@ -112,9 +121,11 @@ void StartDefaultTask(void *argument);
 void SpiTask(void *argument);
 void ButtonTask(void *argument);
 void SdFatfsTask(void *argument);
+void LogTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 BOOL MakeSdCardJob(void);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -150,7 +161,7 @@ uint64_t GetTick(void)
 
 BOOL MakeSdCardJob(void)
 {
-	return okFatfsOnSd_mount();
+	return SdFat_okMount();
 }
 
 //{
@@ -275,11 +286,15 @@ int main(void)
   /* creation of sdFatfsTask */
   sdFatfsTaskHandle = osThreadNew(SdFatfsTask, NULL, &sdFatfsTask_attributes);
 
+  /* creation of logTask */
+  logTaskHandle = osThreadNew(LogTask, NULL, &logTask_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
 
-  spi_event_flags = osEventFlagsNew(NULL);
+//  spi_event_flags = osEventFlagsNew(NULL);
   main_event_flags = osEventFlagsNew(NULL);
+//  jobs_event_flags = osEventFlagsNew(NULL);
 
   /* USER CODE END RTOS_THREADS */
 
@@ -569,7 +584,7 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	  if(spi_event_flags==NULL || main_event_flags==NULL || sd_card_init_needed)
+	  if(/*jobs_event_flags==NULL ||*/ main_event_flags==NULL || sd_card_init_needed)
 		  osDelay(100);
 	  else
 		  osDelay(500);
@@ -593,30 +608,21 @@ void SpiTask(void *argument)
 	/* Infinite loop */
 	for(;;)
 	{
-		if(osEventFlagsWait(
-				spi_event_flags,
-				EF_SPI_SEND_TEST_CMD,
-				osFlagsWaitAny,
-				0) == EF_SPI_SEND_TEST_CMD)
-		{	// SPI send test command received
-			HAL_GPIO_TogglePin(LD5_GPIO_Port,LD5_Pin);/* indicate start command */
+//		if(osEventFlagsWait(
+//				spi_event_flags,
+//				EF_SPI_SEND_TEST_CMD,
+//				osFlagsWaitAny,
+//				0) == EF_SPI_SEND_TEST_CMD)
+//		{	// SPI send test command received
+//			HAL_GPIO_TogglePin(LD5_GPIO_Port,LD5_Pin);/* indicate start command */
 
-			switch (MakeSdCardJob())
-			{
-				case TRUE:
-					HAL_GPIO_WritePin(LD7_GPIO_Port,LD7_Pin,GPIO_PIN_SET);
-					break;
-
-				case FALSE:
-					HAL_GPIO_WritePin(LD10_GPIO_Port,LD10_Pin,GPIO_PIN_SET);
-					break;
-
-				default:
-					HAL_GPIO_WritePin(LD9_GPIO_Port,LD9_Pin,GPIO_PIN_SET);
-					break;
-			}
-		}
-//		osDelay(1);
+//			HAL_GPIO_WritePin(
+//					LD7_GPIO_Port,
+//					LD7_Pin,
+//					MakeSdCardJob() ? GPIO_PIN_SET : GPIO_PIN_RESET);
+//					HAL_GPIO_WritePin(LD10_GPIO_Port,LD10_Pin,GPIO_PIN_SET);
+//		}
+		osDelay(1);
 	}
   /* USER CODE END SpiTask */
 }
@@ -636,6 +642,7 @@ void ButtonTask(void *argument)
 	GPIO_PinState button_current_state;
 //	static unsigned char button_click_counter=0;
 //	uint32_t ev_flag_set_ret_value;
+	static Log_TMessage mes;
 
 	/* Infinite loop */
 	for(;;)
@@ -650,16 +657,22 @@ void ButtonTask(void *argument)
 			if(button_current_state == GPIO_PIN_SET)
 			{	// button just pressed
 				button_prev_state_is_pressed=1;
-				HAL_GPIO_WritePin(LD7_GPIO_Port,LD7_Pin,GPIO_PIN_RESET);
-				HAL_GPIO_WritePin(LD8_GPIO_Port,LD8_Pin,GPIO_PIN_RESET);
-				HAL_GPIO_WritePin(LD9_GPIO_Port,LD9_Pin,GPIO_PIN_RESET);
-				HAL_GPIO_WritePin(LD10_GPIO_Port,LD10_Pin,GPIO_PIN_RESET);
+//				HAL_GPIO_WritePin(LD7_GPIO_Port,LD7_Pin,GPIO_PIN_RESET);
+//				HAL_GPIO_WritePin(LD8_GPIO_Port,LD8_Pin,GPIO_PIN_RESET);
+//				HAL_GPIO_WritePin(LD9_GPIO_Port,LD9_Pin,GPIO_PIN_RESET);
+//				HAL_GPIO_WritePin(LD10_GPIO_Port,LD10_Pin,GPIO_PIN_RESET);
 			}
 			else
 			{	// button just released
 				button_prev_state_is_pressed=0;
+				mes.id = osKernelGetTickCount();
+				strncpy(mes.mes,"qwerty",sizeof(mes.mes));
+				if(Log_okPut(&mes))
+					HAL_GPIO_WritePin(LD5_GPIO_Port,LD5_Pin,GPIO_PIN_SET);
+				else
+					HAL_GPIO_WritePin(LD6_GPIO_Port,LD6_Pin,GPIO_PIN_SET);
 //				ev_flag_set_ret_value=
-						osEventFlagsSet(spi_event_flags,EF_SPI_SEND_TEST_CMD);
+//				osEventFlagsSet(jobs_event_flags,JF_WRITE_LOG);
 			}
 		}
 	}
@@ -681,12 +694,66 @@ void SdFatfsTask(void *argument)
   {
 	  if(sd_card_init_needed)
 	  {
-		  if(okFatfsOnSd_mount())
+		  if(SdFat_okMount())
 			  sd_card_init_needed=FALSE;
 	  }
-    osDelay(1);
+
+	  HAL_GPIO_WritePin(
+			  LD7_GPIO_Port,
+			  LD7_Pin,
+			  SdFat_isReady() ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+	  osDelay(1);
   }
   /* USER CODE END SdFatfsTask */
+}
+
+/* USER CODE BEGIN Header_LogTask */
+/**
+* @brief Function implementing the logTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_LogTask */
+void LogTask(void *argument)
+{
+  /* USER CODE BEGIN LogTask */
+ 	static Log_TMessage Message;
+ 	static uint32_t log_not_ready_counter=0;
+ 	static uint32_t no_or_errGetFromQueue_counter=0;
+ 	static uint32_t errWriteToLogFile_counter=0;
+
+ /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+    if(Log_isReady())
+    {
+    	HAL_GPIO_WritePin(LD9_GPIO_Port,LD9_Pin,GPIO_PIN_SET);
+
+    	if(Log_okGetFromQueue(&Message))
+    	{
+    		if(Log_okWriteToLogFile(&Message))
+    		{
+				HAL_GPIO_WritePin(LD5_GPIO_Port,LD5_Pin,GPIO_PIN_RESET);
+				Log_FileClose();
+    		}
+    		else
+    			++errWriteToLogFile_counter;
+    	}
+    	else
+    		++no_or_errGetFromQueue_counter;
+    }
+    else
+    {
+    	if( ! Log_okInit() )
+    	{
+    		HAL_GPIO_WritePin(LD9_GPIO_Port,LD9_Pin,GPIO_PIN_RESET);
+    		++log_not_ready_counter;
+    	}
+    }
+  }
+  /* USER CODE END LogTask */
 }
 
  /**
