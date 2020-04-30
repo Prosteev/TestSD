@@ -15,4 +15,6 @@ typedef unsigned char BOOL;
 #define FALSE 0
 
 
+#define LOG_MES_LEN 80 /* log message max length */
+
 #endif /* INC_PROJDEFS_H_ */
