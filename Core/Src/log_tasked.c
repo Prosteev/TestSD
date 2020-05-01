@@ -17,8 +17,8 @@
 //#define MP_BLOCK_SIZE      LOG_MES_LEN
 //#define MP_BLOCK_COUNT     5
 /* Private variables ---------------------------------------------------------*/
-static Log_ErrorFlags_t error_flags = 0;
-static Log_StateFlags_t state_flags = 0;
+static Log_ErrorFlags_t log_error_flags = 0;
+static Log_StateFlags_t log_state_flags = 0;
 
 FIL log_file;        /* File object */
 FRESULT fres;   /* FatFs return code */
@@ -35,7 +35,7 @@ BOOL Log_okInit(void)
 	uint32_t ev_flag_set_res;
 
 	// check preconditions
-	state_flags=0;
+	log_state_flags=0;
     if(main_event_flags==NULL)
     	return FALSE; // flags not exist
 
@@ -44,20 +44,20 @@ BOOL Log_okInit(void)
 
     if( (osEventFlagsGet(main_event_flags) & MF_FATFS_ON_SD_INITED)==0 )
     {	// SD & FATFS not initialized
-    	error_flags = Log_EF_INIT_NO_SD_FATFS;
+    	log_error_flags = Log_EF_INIT_NO_SD_FATFS;
     	return FALSE;
     }
 
  	// basic work
 
-   if( (state_flags & Log_SF_OPEN_2WRITE)==0 )
+   if( (log_state_flags & Log_SF_OPEN_2WRITE)==0 )
    {	// is not opened
 
 	   /* Open a text file */
 	   fres = f_open(&log_file, "a.log", FA_CREATE_ALWAYS | FA_WRITE);
 	   if (fres)
 	   {
-		   error_flags = Log_EF_FOPEN_2WRITE;
+		   log_error_flags = Log_EF_FOPEN_2WRITE;
 		   return FALSE;
 	   }
 
@@ -66,7 +66,7 @@ BOOL Log_okInit(void)
 		   MsgQueue = osMessageQueueNew(QUEUE_MES_COUNT, sizeof(Log_TMessage), NULL);
 		   if(MsgQueue == NULL)
 		   {	// Message Queue object is not created
-			   error_flags = Log_EF_MES_QUEUE_INIT;
+			   log_error_flags = Log_EF_MES_QUEUE_INIT;
 			   return FALSE;
 		   }
 	   }
@@ -74,7 +74,7 @@ BOOL Log_okInit(void)
 	   {
 		   if(osMessageQueueReset(MsgQueue)!=osOK)
 		   {	// Message Queue object is not reset
-			   error_flags = Log_EF_MES_QUEUE_RESET;
+			   log_error_flags = Log_EF_MES_QUEUE_RESET;
 			   return FALSE;
 		   }
 	   }
@@ -85,14 +85,14 @@ BOOL Log_okInit(void)
 //		   return FALSE;
 //	   }
 
-	   state_flags |= Log_SF_OPEN_2WRITE;
+	   log_state_flags |= Log_SF_OPEN_2WRITE;
    }
 
    ev_flag_set_res=
 		   osEventFlagsSet(main_event_flags,MF_LOG_IS_READY);
    if( (int32_t)ev_flag_set_res < 0 || (ev_flag_set_res & MF_LOG_IS_READY)==0 )
    {
-	   error_flags |= Log_EF_SET_MAIN_EV_FLAG;
+	   log_error_flags |= Log_EF_SET_MAIN_EV_FLAG;
 	   return FALSE;
    }
 
@@ -113,10 +113,10 @@ BOOL Log_okPut(Log_TMessage * Message)
 	status = osMessageQueuePut( MsgQueue, Message, 0, osWaitForever );
 	if(status!=osOK)
 	{
-		state_flags |= Log_EF_MES_QUEUE_PUT;
+		log_state_flags |= Log_EF_MES_QUEUE_PUT;
 		return FALSE;
 	}
-	state_flags &= ~Log_EF_MES_QUEUE_PUT;
+	log_state_flags &= ~Log_EF_MES_QUEUE_PUT;
 	return TRUE;
 }
 
@@ -136,18 +136,18 @@ BOOL Log_okGetFromQueue(Log_TMessage * Message)
     {
 		case osOK:
 			// the message has been retrieved from the queue OR
-			state_flags &= ~Log_EF_MES_QUEUE_GET;
+			log_state_flags &= ~Log_EF_MES_QUEUE_GET;
 			return TRUE;
 			break;
 
 		case osErrorResource:
 			//nothing to get from the queue (try semantics)
-			state_flags &= ~Log_EF_MES_QUEUE_GET;
+			log_state_flags &= ~Log_EF_MES_QUEUE_GET;
 			return FALSE;
 			break;
 
 		default:
-	    	state_flags |= Log_EF_MES_QUEUE_GET;
+			log_state_flags |= Log_EF_MES_QUEUE_GET;
 	    	return FALSE;
 			break;
 	}
@@ -182,12 +182,12 @@ BOOL Log_okWriteToLogFile(Log_TMessage * Message)
 
 Log_ErrorFlags_t Log_GetErrorFlags(void)
 {
-	return error_flags;
+	return log_error_flags;
 }
 
 BOOL Log_isReady(void)
 {
-	if( (state_flags & Log_SF_OPEN_2WRITE)==0 )
+	if( (log_state_flags & Log_SF_OPEN_2WRITE)==0 )
 		return FALSE; // log is not opened
 	if(main_event_flags==NULL)
 		return FALSE; // flags not exist
@@ -200,11 +200,11 @@ BOOL Log_isReady(void)
 void Log_FileClose(void)
 {
 	// check preconditions
-	if( (state_flags & Log_SF_OPEN_2WRITE)==0 )
+	if( (log_state_flags & Log_SF_OPEN_2WRITE)==0 )
 		return; // log is not opened
 
 	// basic work
 	fres = f_close(&log_file);
-	state_flags &= ~Log_SF_OPEN_2WRITE;
+	log_state_flags &= ~Log_SF_OPEN_2WRITE;
 	osEventFlagsClear(main_event_flags, MF_LOG_IS_READY);
 }
