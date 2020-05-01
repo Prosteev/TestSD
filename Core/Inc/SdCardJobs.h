@@ -30,7 +30,9 @@ typedef uint8_t SdFat_StateFlags_t;
 //#define Log_EF_MES_QUEUE_GET	(1<<4) /* Get message from Message Queue error */
 
 /* SdF_StateFlags_t */
-#define SdFat_SF_MOUNTED		    (1<<1) /* log file opened to write */
+#define SdFat_SF_DISK_INITED	    (1<<0) /*  */
+#define SdFat_SF_DRIVE_MOUNTED	    (1<<1) /*  */
+#define SdFat_SF_MOUNTED		    (1<<2) /* log file opened to write */
 /* Exported functions prototypes ---------------------------------------------*/
 
 /*
