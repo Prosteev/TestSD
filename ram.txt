@@ -1,0 +1,17 @@
+Memory Configuration
+RAM              0x0000000020000000 0x000000000000a000 xrw
+
+._user_heap_stack
+                0x0000000020005b08     0x4500 load address 0x000000000800b78c
+
+
+ .bss.ucHeap    0x0000000020000e50     0x3fac Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.o
+
+0x3fac == 16300
+
+static uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
+#define configTOTAL_HEAP_SIZE                    ((size_t)16300)  :
+
+	- TestSD.elf section `._user_heap_stack' will not fit in region `RAM'
+	- region `RAM' overflowed by 8 bytes
+
