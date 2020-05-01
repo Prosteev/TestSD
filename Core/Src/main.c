@@ -44,7 +44,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define BUTTON_AMOUNT 2
 /* event flags for spi_event_flags */
 //#define EF_SPI_SEND_TEST_CMD 0x1 /* SPI: send test command */
 
@@ -82,21 +82,21 @@ osThreadId_t buttonTaskHandle;
 const osThreadAttr_t buttonTask_attributes = {
   .name = "buttonTask",
   .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
+  .stack_size = 180 * 4
 };
 /* Definitions for sdFatfsTask */
 osThreadId_t sdFatfsTaskHandle;
 const osThreadAttr_t sdFatfsTask_attributes = {
   .name = "sdFatfsTask",
   .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
+  .stack_size = 420 * 4
 };
 /* Definitions for logTask */
 osThreadId_t logTaskHandle;
 const osThreadAttr_t logTask_attributes = {
   .name = "logTask",
   .priority = (osPriority_t) osPriorityNormal,
-  .stack_size = 900 * 4
+  .stack_size = 1000 * 4
 };
 /* Definitions for syscallCountingSem */
 osSemaphoreId_t syscallCountingSemHandle;
@@ -126,10 +126,31 @@ void LogTask(void *argument);
 /* USER CODE BEGIN PFP */
 BOOL MakeSdCardJob(void);
 
+void Button1_Pressed(void);
+void Button2_Pressed(void);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+/*
+ * защита от применения где-то malloc & free
+ */
+extern void nonexistentfunction( void );
+
+void *malloc( size_t size )
+{
+    ( void ) size;
+    nonexistentfunction();
+    return NULL;
+}
+
+void free( void *pvMemory )
+{
+    ( void ) pvMemory;
+    nonexistentfunction();
+}
 
 /*
  * additional 64bit tick counter function
@@ -163,6 +184,25 @@ BOOL MakeSdCardJob(void)
 {
 	return SdFat_okMount();
 }
+
+void Button1_Pressed(void)
+{
+	static Log_TMessage mes;
+
+	mes.id = osKernelGetTickCount();
+	strncpy(mes.mes,"qwerty",sizeof(mes.mes));
+	if(Log_okPut(&mes))
+		HAL_GPIO_WritePin(LD5_GPIO_Port,LD5_Pin,GPIO_PIN_SET);
+	else
+		HAL_GPIO_WritePin(LD6_GPIO_Port,LD6_Pin,GPIO_PIN_SET);
+//				ev_flag_set_ret_value=
+//				osEventFlagsSet(jobs_event_flags,JF_WRITE_LOG);
+}
+void Button2_Pressed(void)
+{
+
+}
+
 
 //{
 //	DSTATUS dstat = RES_OK;
@@ -531,6 +571,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOE, CS_I2C_SPI_Pin|LD4_Pin|LD3_Pin|LD5_Pin 
@@ -564,6 +605,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : B2_Pin */
+  GPIO_InitStruct.Pin = B2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(B2_GPIO_Port, &GPIO_InitStruct);
 
 }
 
@@ -637,44 +684,76 @@ void SpiTask(void *argument)
 void ButtonTask(void *argument)
 {
   /* USER CODE BEGIN ButtonTask */
-	static char button_prev_state_is_pressed=0;
-	char button_state_is_now_pressed;
-	GPIO_PinState button_current_state;
-//	static unsigned char button_click_counter=0;
-//	uint32_t ev_flag_set_ret_value;
-	static Log_TMessage mes;
+	typedef struct
+	{
+		GPIO_TypeDef * port;
+		uint16_t pin;
+		GPIO_TypeDef * led_port;
+		uint16_t led_pin;
+		char prev_state_is_pressed;
+		char state_is_now_pressed;
+		GPIO_PinState current_state;
+		void (*ButtonPressedFunc)(void);
+	} TButtonData;
+
+	static TButtonData button[BUTTON_AMOUNT] =
+	{
+			{ B1_GPIO_Port, B1_Pin, LD3_GPIO_Port, LD3_Pin, 0, 0, GPIO_PIN_RESET, Button1_Pressed },
+			{ B2_GPIO_Port, B2_Pin, LD10_GPIO_Port, LD10_Pin, 0, 0, GPIO_PIN_RESET, Button2_Pressed }
+	};
+//	static char button_prev_state_is_pressed=0;
+//	char button_state_is_now_pressed;
+//	GPIO_PinState button_current_state;
 
 	/* Infinite loop */
 	for(;;)
 	{
 		osDelay(100); // некая защита от дребезга кнопки
-		button_current_state=HAL_GPIO_ReadPin(B1_GPIO_Port,B1_Pin);
-		HAL_GPIO_WritePin(LD3_GPIO_Port,LD3_Pin,button_current_state);
-		button_state_is_now_pressed = (button_current_state == GPIO_PIN_SET);
-
-		if(button_prev_state_is_pressed != button_state_is_now_pressed)
-		{	// button state changed
-			if(button_current_state == GPIO_PIN_SET)
-			{	// button just pressed
-				button_prev_state_is_pressed=1;
-//				HAL_GPIO_WritePin(LD7_GPIO_Port,LD7_Pin,GPIO_PIN_RESET);
-//				HAL_GPIO_WritePin(LD8_GPIO_Port,LD8_Pin,GPIO_PIN_RESET);
-//				HAL_GPIO_WritePin(LD9_GPIO_Port,LD9_Pin,GPIO_PIN_RESET);
-//				HAL_GPIO_WritePin(LD10_GPIO_Port,LD10_Pin,GPIO_PIN_RESET);
-			}
-			else
-			{	// button just released
-				button_prev_state_is_pressed=0;
-				mes.id = osKernelGetTickCount();
-				strncpy(mes.mes,"qwerty",sizeof(mes.mes));
-				if(Log_okPut(&mes))
-					HAL_GPIO_WritePin(LD5_GPIO_Port,LD5_Pin,GPIO_PIN_SET);
+		for(int i=0; i < BUTTON_AMOUNT; ++i)
+		{
+			button[i].current_state = HAL_GPIO_ReadPin( button[i].port, button[i].pin );
+			HAL_GPIO_WritePin( button[i].led_port, button[i].led_pin, button[i].current_state );
+			button[i].state_is_now_pressed = (button[i].current_state == GPIO_PIN_SET);
+			if(button[i].prev_state_is_pressed != button[i].state_is_now_pressed)
+			{	// button state changed
+				if(button[i].current_state == GPIO_PIN_SET)
+				{	// button just pressed
+					button[i].prev_state_is_pressed=1;
+				}
 				else
-					HAL_GPIO_WritePin(LD6_GPIO_Port,LD6_Pin,GPIO_PIN_SET);
-//				ev_flag_set_ret_value=
-//				osEventFlagsSet(jobs_event_flags,JF_WRITE_LOG);
+				{	// button just released
+					button[i].prev_state_is_pressed=0;
+					button[i].ButtonPressedFunc();
+				}
 			}
 		}
+//		button_current_state=HAL_GPIO_ReadPin(B1_GPIO_Port,B1_Pin);
+//		HAL_GPIO_WritePin(LD3_GPIO_Port,LD3_Pin,button_current_state);
+//		button_state_is_now_pressed = (button_current_state == GPIO_PIN_SET);
+
+//		if(button_prev_state_is_pressed != button_state_is_now_pressed)
+//		{	// button state changed
+//			if(button_current_state == GPIO_PIN_SET)
+//			{	// button just pressed
+//				button_prev_state_is_pressed=1;
+////				HAL_GPIO_WritePin(LD7_GPIO_Port,LD7_Pin,GPIO_PIN_RESET);
+////				HAL_GPIO_WritePin(LD8_GPIO_Port,LD8_Pin,GPIO_PIN_RESET);
+////				HAL_GPIO_WritePin(LD9_GPIO_Port,LD9_Pin,GPIO_PIN_RESET);
+////				HAL_GPIO_WritePin(LD10_GPIO_Port,LD10_Pin,GPIO_PIN_RESET);
+//			}
+//			else
+//			{	// button just released
+//				button_prev_state_is_pressed=0;
+//				mes.id = osKernelGetTickCount();
+//				strncpy(mes.mes,"qwerty",sizeof(mes.mes));
+//				if(Log_okPut(&mes))
+//					HAL_GPIO_WritePin(LD5_GPIO_Port,LD5_Pin,GPIO_PIN_SET);
+//				else
+//					HAL_GPIO_WritePin(LD6_GPIO_Port,LD6_Pin,GPIO_PIN_SET);
+////				ev_flag_set_ret_value=
+////				osEventFlagsSet(jobs_event_flags,JF_WRITE_LOG);
+//			}
+//		}
 	}
   /* USER CODE END ButtonTask */
 }
